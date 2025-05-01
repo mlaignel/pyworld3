@@ -84,19 +84,30 @@ def requires(outputs=None, inputs=None,
 
     return requires_decorator
 
-
 def plot_world_variables(time, var_data, var_names, var_lims,
                          img_background=None,
                          title=None,
                          figsize=None,
                          dist_spines=0.09,
-                         grid=False):
+                         grid=False,
+                         colors=None,
+                         linestyles=None,
+                         markers=None,
+                         marker_size=6,
+                         marker_interval=20):
     """
     Plots world state from an instance of World3 or any single sector.
-
     """
-    prop_cycle = plt.rcParams['axes.prop_cycle']
-    colors = prop_cycle.by_key()['color']
+
+    # Default colors, linestyles and markers
+    if colors is None:
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
+    if linestyles is None:
+        linestyles = ['-', '-','-','-','-']
+    #     linestyles = ['-', '--', '-.', ':']
+    if markers is None:
+        markers = ['o','D','d','s','h','v']
 
     var_number = len(var_data)
 
@@ -118,9 +129,23 @@ def plot_world_variables(time, var_data, var_names, var_lims,
                       extent=[time[0], time[-1],
                               var_lims[0][0], var_lims[0][1]], cmap="gray")
 
+    if marker_interval is not None:
+        marker_times = list(range(int(time[0]), int(time[-1]) + 1, marker_interval))
+        marker_indices = [i for i, t in enumerate(time) if any(abs(t - mt) < 1e-5 for mt in marker_times)]
+    else:
+        marker_indices = None
+
     ps = []
-    for ax, label, ydata, color in zip(axs, var_names, var_data, colors):
-        ps.append(ax.plot(time, ydata, label=label, color=color)[0])
+    for ax, label, ydata, color, linestyle, marker in zip(axs, var_names, var_data, colors, linestyles, markers):
+        ps.append(ax.plot(time, ydata,
+                          label=label,
+                          color=color,
+                          linestyle=linestyle,
+                          marker=marker if marker_interval else None,
+                          markevery=marker_indices,
+                          markersize=marker_size,
+                          markerfacecolor=color)[0])
+
     axs[0].grid(grid)
     axs[0].set_xlim(time[0], time[-1])
 
@@ -134,15 +159,20 @@ def plot_world_variables(time, var_data, var_names, var_lims,
         ax_.yaxis.set_major_formatter(formatter_)
 
     tkw = dict(size=4, width=1.5)
-    axs[0].set_xlabel("time [years]")
+    axs[0].set_xlabel("Time [years]")
     axs[0].tick_params(axis='x', **tkw)
     for i, (ax, p) in enumerate(zip(axs, ps)):
-        ax.set_ylabel(p.get_label(), rotation="horizontal")
+        # ax.set_ylabel(p.get_label(), rotation="horizontal")
         ax.yaxis.label.set_color(p.get_color())
         ax.tick_params(axis='y', colors=p.get_color(), **tkw)
         ax.yaxis.set_label_coords(-i*dist_spines, 1.01)
+    
+    # After plotting everything, add the legend
+    axs[0].legend(handles = ps, loc='center left', bbox_to_anchor=(1.02, 0.5), frameon=False)
+
 
     if title is not None:
-        fig.suptitle(title, x=0.95, ha="right", fontsize=10)
+        fig.suptitle(title, ha="center", fontsize=20)
 
-    plt.tight_layout()
+    # plt.tight_layout(rect=[0, 0, 0.85, 1])
+    # plt.tight_layout()
